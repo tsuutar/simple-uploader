@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const multer = require("multer");
 const fs = require("fs");
@@ -5,26 +6,45 @@ const path = require("path");
 const cors = require("cors");
 
 const app = express();
-const PORT = 3000;
-const UPLOAD_DIR = "uploadfiles";
+const PORT = process.env.PORT || 3000;
+const UPLOAD_DIR = process.env.UPLOAD_DIR || "uploadfiles";
+
+// .envからCORS許可オリジンを読み込み（カンマ区切り）
+const customOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(",").map((origin) => origin.trim())
+  : [];
 
 // アップロードディレクトリがなければ作成
 if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 
-// 許可するオリジン
-const allowedOrigins = ["http://localhost:3000"];
+// ローカルネットワークと.envで指定されたオリジンからのアクセスを許可
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
+      // オリジンがない場合（同一オリジン）は許可
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      // .envで指定されたオリジンをチェック
+      if (customOrigins.length > 0 && customOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      // ローカルホスト、プライベートIPアドレスからのアクセスを許可
+      const localhostPattern = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+      const privateIPPattern =
+        /^https?:\/\/(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$/;
+
+      if (localhostPattern.test(origin) || privateIPPattern.test(origin)) {
         callback(null, true);
       } else {
         callback(new Error("CORSポリシーによりブロックされました"));
       }
     },
-  })
+  }),
 );
 
 // ファイル名のサニタイズ
@@ -44,7 +64,7 @@ const storage = multer.diskStorage({
   filename: (req, file, cb) => {
     // Latin1 (ISO-8859-1) から UTF-8 に変換
     const safeFilename = sanitizeFilename(
-      Buffer.from(file.originalname, "latin1").toString("utf-8")
+      Buffer.from(file.originalname, "latin1").toString("utf-8"),
     );
     cb(null, safeFilename);
   },
@@ -84,7 +104,7 @@ app.get("/files", (req, res) => {
     });
     res.setHeader(
       "Content-Disposition",
-      "inline; filename*=UTF-8''" + encodeURIComponent("filelist.json")
+      "inline; filename*=UTF-8''" + encodeURIComponent("filelist.json"),
     );
     res.json(fileList);
   });

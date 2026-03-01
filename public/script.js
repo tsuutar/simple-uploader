@@ -1,10 +1,22 @@
 document.addEventListener("DOMContentLoaded", loadFiles);
 
+const dropArea = document.getElementById("drop-area");
 const fileInput = document.getElementById("file-input");
 const fileList = document.getElementById("file-list");
 const progressContainer = document.getElementById("progress-container");
 const progressBar = document.getElementById("progress-bar");
 const progressText = document.getElementById("progress-text");
+const selectedFilesDiv = document.getElementById("selected-files");
+
+// ドロップエリアをクリックしてファイル選択
+dropArea.addEventListener("click", () => {
+  fileInput.click();
+});
+
+// ファイル選択時の処理
+fileInput.addEventListener("change", () => {
+  displaySelectedFiles();
+});
 
 // 全画面のドラッグ＆ドロップ対応
 document.addEventListener("dragover", (e) => {
@@ -20,8 +32,39 @@ document.addEventListener("drop", (e) => {
   e.preventDefault();
   document.body.classList.remove("bg-gray-200");
   fileInput.files = e.dataTransfer.files;
-  uploadFiles();
+  displaySelectedFiles();
 });
+
+// 選択されたファイルを表示
+function displaySelectedFiles() {
+  const files = fileInput.files;
+  if (files.length === 0) {
+    selectedFilesDiv.innerHTML = "";
+    return;
+  }
+
+  let html = '<div class="bg-blue-50 p-3 rounded border border-blue-200">';
+  html += `<p class="font-semibold text-blue-700 mb-2">選択されたファイル (${files.length}個):</p>`;
+  html += '<ul class="list-disc list-inside text-gray-700">';
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const size = formatFileSize(file.size);
+    html += `<li class="truncate">${file.name} <span class="text-gray-500">(${size})</span></li>`;
+  }
+
+  html += "</ul></div>";
+  selectedFilesDiv.innerHTML = html;
+}
+
+// ファイルサイズをフォーマット
+function formatFileSize(bytes) {
+  if (bytes === 0) return "0 Bytes";
+  const k = 1024;
+  const sizes = ["Bytes", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
+}
 
 function uploadFiles() {
   const files = fileInput.files;
@@ -53,6 +96,7 @@ function uploadFiles() {
 
       // **ファイル選択をリセット**
       fileInput.value = "";
+      selectedFilesDiv.innerHTML = "";
 
       setTimeout(() => {
         progressContainer.classList.add("hidden");
